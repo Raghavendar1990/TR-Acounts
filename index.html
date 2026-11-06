@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transport Charges</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#172033;--muted:#697386;--accent:#2563eb;--line:#e6eaf2}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Telugu",sans-serif}
+header{background:linear-gradient(135deg,#123a8c,#2875ed);color:#fff;padding:24px 18px 30px;border-radius:0 0 25px 25px}
+header h1{margin:0;font-size:24px}header p{margin:7px 0 0;opacity:.85;font-size:14px}
+main{max-width:720px;margin:-15px auto 30px;padding:0 14px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat,.panel{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 5px 20px #182d5010}
+.stat small{color:var(--muted)}.stat strong{display:block;font-size:24px;margin-top:6px;color:#1454c7}
+.panel{margin-top:14px}.panel h2{font-size:17px;margin:0 0 13px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input,select,button{font:inherit;border-radius:10px;padding:12px;border:1px solid var(--line);background:#fff;color:var(--ink);min-width:0}
+input:focus,select:focus{outline:2px solid #b9d0ff}
+.wide{grid-column:1/-1}.primary{background:var(--accent);color:white;border:0;font-weight:650}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}
+.entry{padding:13px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.entry:last-child{border-bottom:0}.entry .info{flex:1;min-width:0}.entry b{display:block}.entry small{color:var(--muted)}.amount{font-weight:700;white-space:nowrap}
+.del{padding:7px 10px;color:#b42318;background:#fff5f4;border:0}
+.toolbar{display:flex;gap:8px;margin-bottom:8px}.toolbar input{flex:1}
+.empty{color:var(--muted);text-align:center;padding:22px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+@media(max-width:420px){form{grid-template-columns:1fr}.wide{grid-column:auto}.stat strong{font-size:20px}}
+</style>
+</head>
+<body>
+<header><h1>🚘 Transport Charges</h1><p>మీ ప్రయాణ ఖర్చులు — సులభంగా నమోదు & లెక్కింపు</p></header>
+<main>
+<section class="summary">
+ <div class="stat"><small>మొత్తం ఖర్చు</small><strong id="total">₹0</strong></div>
+ <div class="stat"><small>మొత్తం ఎంట్రీలు</small><strong id="count">0</strong></div>
+</section>
+<section class="panel">
+<h2>➕ కొత్త ఖర్చు నమోదు</h2>
+<form id="expenseForm">
+<input id="date" type="date" required aria-label="తేదీ">
+<input id="amount" type="number" min="0" step="0.01" placeholder="Amount ₹" required>
+<input id="from" placeholder="From (ఉదా: Room)" required>
+<input id="to" placeholder="To (ఉదా: Nims)" required>
+<select id="type"><option>Transport</option><option>Petrol</option><option>Tollgate</option><option>Auto</option><option>Other</option></select>
+<input id="note" placeholder="Note (optional)">
+<button class="primary wide" type="submit">ఖర్చు Save చేయి</button>
+</form>
+<div class="actions"><button id="export">⬇ Excel/CSV Export</button><button id="clear">అన్నీ Clear</button></div>
+</section>
+<section class="panel">
+<h2>📋 ఖర్చుల వివరాలు</h2>
+<div class="toolbar"><input id="search" placeholder="Route / తేదీ Search"><select id="month"><option value="">All Months</option></select></div>
+<div id="entries"></div>
+</section>
+<footer>డేటా ఈ మొబైల్ బ్రౌజర్‌లోనే సేవ్ అవుతుంది (Local Storage).</footer>
+</main>
+<script>
+const initial=[
+["2026-10-29","Wnp","Hyd","Car Petrol",2400,""],
+["2026-10-29","Wnp","Hyd","Tollgate",500,""],
+["2026-10-31","Hyd","Wnp","Car petrol",500,""],
+["2026-11-02","Room","Scan","Transport",50,""],
+["2026-11-02","Scan","Room","Transport",60,""],
+["2026-11-03","Room","Nims","Transport",150,""],
+["2026-11-03","Nims","Scan","Transport",110,""],
+["2026-11-03","Scan","Room","Transport",50,""],
+["2026-11-06","Room","Nims","Transport",202,""]
+].map((x,i)=>({id:i+1,date:x[0],from:x[1],to:x[2],type:x[3],amount:x[4],note:x[5]}));
+let data=JSON.parse(localStorage.getItem("transportCharges_v1")||"null")||initial;
+const $=id=>document.getElementById(id);
+const money=n=>"₹"+Number(n).toLocaleString("en-IN",{maximumFractionDigits:2});
+function save(){localStorage.setItem("transportCharges_v1",JSON.stringify(data));render()}
+function render(){
+ $("total").textContent=money(data.reduce((s,e)=>s+Number(e.amount),0));
+ $("count").textContent=data.length;
+ const months=[...new Set(data.map(e=>e.date.slice(0,7)))].sort().reverse();
+ const m=$("month"),old=m.value;m.innerHTML='<option value="">All Months</option>'+months.map(x=>`<option value="${x}">${x}</option>`).join("");m.value=months.includes(old)?old:"";
+ const q=$("search").value.toLowerCase();
+ const filtered=data.filter(e=>(!m.value||e.date.startsWith(m.value))&&(`${e.date} ${e.from} ${e.to} ${e.type} ${e.note}`).toLowerCase().includes(q)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+ $("entries").innerHTML=filtered.length?filtered.map(e=>`<div class="entry"><div class="info"><b>${esc(e.from)} → ${esc(e.to)}</b><small>${e.date.split("-").reverse().join("/")} · ${esc(e.type)}${e.note?" · "+esc(e.note):""}</small></div><span class="amount">${money(e.amount)}</span><button class="del" onclick="removeEntry(${e.id})" title="Delete">✕</button></div>`).join(""):'<div class="empty">ఖర్చులు కనిపించడం లేదు</div>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+window.removeEntry=id=>{if(confirm("ఈ ఖర్చును తొలగించాలా?")){data=data.filter(e=>e.id!==id);save()}};
+$("date").value=new Date().toISOString().slice(0,10);
+$("expenseForm").addEventListener("submit",e=>{e.preventDefault();data.push({id:Date.now(),date:$("date").value,from:$("from").value.trim(),to:$("to").value.trim(),type:$("type").value,amount:Number($("amount").value),note:$("note").value.trim()});save();$("expenseForm").reset();$("date").value=new Date().toISOString().slice(0,10)});
+$("search").addEventListener("input",render);$("month").addEventListener("change",render);
+$("export").onclick=()=>{let rows=[["Date","From","To","Expense Type","Amount (INR)","Note"],...data.map(e=>[e.date,e.from,e.to,e.type,e.amount,e.note])];let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\r\n");let blob=new Blob(["\\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Transport_Charges.csv";a.click();URL.revokeObjectURL(a.href)};
+$("clear").onclick=()=>{if(confirm("అన్ని ఖర్చులు తొలగించాలా? ఇది తిరిగి రాదు.")){data=[];save()}};
+render();
+</script>
+</body></html>
